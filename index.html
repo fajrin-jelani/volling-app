@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Voting</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    .vote-button {
+      transition: all 0.3s ease;
+    }
+    
+    .vote-button:active {
+      transform: scale(0.95);
+    }
+    
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+    }
+    
+    .slide-up {
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full">
+  <div id="app" class="h-full w-full overflow-auto" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+   <div class="min-h-full w-full p-4 sm:p-6 md:p-8"><!-- Header -->
+    <div class="max-w-4xl mx-auto mb-6">
+     <div class="flex items-center justify-between flex-wrap gap-3">
+      <h1 id="app-title" class="text-3xl sm:text-4xl font-bold text-white">Aplikasi Voting</h1>
+      <div class="flex gap-2"><button id="results-btn" class="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all font-semibold text-sm sm:text-base"> 📊 Hasil </button> <button id="settings-btn" class="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all font-semibold text-sm sm:text-base"> ⚙️ Pengaturan </button>
+      </div>
+     </div>
+    </div><!-- Voter Name Input (shown when voting is allowed) -->
+    <div id="voter-name-section" class="max-w-4xl mx-auto mb-6 hidden">
+     <div class="bg-white bg-opacity-20 backdrop-blur-md rounded-xl p-4 sm:p-6"><label for="voter-name" class="block text-white font-semibold mb-2">Nama Pemilih</label> <input type="text" id="voter-name" placeholder="Masukkan nama Anda sebelum memilih" class="w-full px-4 py-3 border-2 border-white border-opacity-30 rounded-lg focus:outline-none focus:border-white bg-white bg-opacity-90 transition-all">
+      <p class="text-white text-opacity-80 text-xs mt-2">Nama Anda akan tercatat dalam sistem untuk transparansi</p>
+     </div>
+    </div><!-- Candidates List -->
+    <div id="candidates-container" class="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4"><!-- Candidates will be rendered here -->
+    </div><!-- Empty State -->
+    <div id="empty-state" class="max-w-4xl mx-auto text-center py-12 hidden">
+     <div class="text-white text-opacity-80 mb-4">
+      <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+      </svg>
+      <p class="text-lg font-semibold">Belum Ada Kandidat</p>
+      <p class="text-sm mt-2">Klik tombol Pengaturan untuk menambah kandidat</p>
+     </div>
+    </div>
+   </div><!-- Results Modal -->
+   <div id="results-modal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden slide-up"><!-- Modal Header -->
+     <div class="bg-gradient-to-r from-green-600 to-teal-600 p-6">
+      <div class="flex items-center justify-between">
+       <h2 id="results-title" class="text-2xl font-bold text-white">Hasil Voting</h2><button id="close-results" class="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg></button>
+      </div>
+     </div><!-- Password Entry (shown first) -->
+     <div id="password-entry" class="p-6">
+      <div class="text-center mb-6">
+       <div class="text-6xl mb-4">
+        🔒
+       </div>
+       <h3 class="text-xl font-bold text-gray-800 mb-2">Area Terbatas</h3>
+       <p class="text-gray-600 text-sm">Masukkan password admin untuk melihat hasil voting lengkap</p>
+      </div>
+      <div class="max-w-sm mx-auto"><label for="admin-password" id="admin-password-label" class="block text-sm font-semibold text-gray-700 mb-2">Password Admin</label> <input type="password" id="admin-password" placeholder="Masukkan password" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 transition-all mb-3"> <button id="verify-password" class="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all font-semibold"> 🔓 Buka Hasil </button>
+      </div>
+     </div><!-- Results Content (hidden until password verified) -->
+     <div id="results-content" class="hidden p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+      <div id="results-list" class="space-y-4"><!-- Results will be rendered here -->
+      </div>
+     </div>
+    </div>
+   </div><!-- Settings Modal -->
+   <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden slide-up"><!-- Modal Header -->
+     <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
+      <div class="flex items-center justify-between">
+       <h2 id="settings-title" class="text-2xl font-bold text-white">Kelola Kandidat</h2><button id="close-modal" class="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg></button>
+      </div>
+     </div><!-- Password Entry for Settings (shown first) -->
+     <div id="settings-password-entry" class="p-6">
+      <div class="text-center mb-6">
+       <div class="text-6xl mb-4">
+        🔐
+       </div>
+       <h3 class="text-xl font-bold text-gray-800 mb-2">Area Admin</h3>
+       <p class="text-gray-600 text-sm">Masukkan password admin untuk mengakses pengaturan</p>
+      </div>
+      <div class="max-w-sm mx-auto"><label for="settings-admin-password" class="block text-sm font-semibold text-gray-700 mb-2">Password Admin</label> <input type="password" id="settings-admin-password" placeholder="Masukkan password" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 transition-all mb-3"> <button id="verify-settings-password" class="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-all font-semibold"> 🔓 Buka Pengaturan </button>
+      </div>
+     </div><!-- Modal Content (hidden until password verified) -->
+     <div id="settings-content" class="hidden p-6 overflow-y-auto max-h-[calc(90vh-200px)]"><!-- Admin Password Setting -->
+      <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+       <h3 class="text-sm font-semibold text-gray-700 mb-3">🔐 Ganti Password Admin</h3><label class="block text-xs font-semibold text-gray-600 mb-2">Password Lama</label> <input type="password" id="old-password" placeholder="Masukkan password lama" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition-all mb-3"> <label class="block text-xs font-semibold text-gray-600 mb-2">Password Baru</label> <input type="password" id="new-password" placeholder="Masukkan password baru (min. 6 karakter)" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition-all mb-3"> <label class="block text-xs font-semibold text-gray-600 mb-2">Konfirmasi Password Baru</label> <input type="password" id="confirm-password" placeholder="Ulangi password baru" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition-all mb-3"> <button id="save-password" class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-all font-semibold text-sm"> 💾 Ganti Password </button>
+      </div><!-- Voting Mode Toggle -->
+      <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200"><label class="block text-sm font-semibold text-gray-700 mb-3">Mode Pemilihan</label>
+       <div class="flex gap-2"><button id="mode-single" class="flex-1 px-4 py-3 rounded-lg font-semibold transition-all border-2" onclick="setVotingMode('single')"> 🔒 Pilih Satu </button> <button id="mode-multiple" class="flex-1 px-4 py-3 rounded-lg font-semibold transition-all border-2" onclick="setVotingMode('multiple')"> ✅ Pilih Banyak </button>
+       </div><!-- Max Votes Selection (only shown in multiple mode) -->
+       <div id="max-votes-container" class="mt-4 hidden"><label class="block text-sm font-semibold text-gray-700 mb-2">Maksimal Kandidat yang Boleh Dipilih</label>
+        <div class="flex items-center gap-3"><button onclick="decreaseMaxVotes()" class="bg-purple-600 text-white w-10 h-10 rounded-lg hover:bg-purple-700 transition-all font-bold text-xl"> − </button>
+         <div class="flex-1 text-center"><span id="max-votes-display" class="text-3xl font-bold text-purple-600">2</span>
+          <p class="text-xs text-gray-500 mt-1">kandidat</p>
+         </div><button onclick="increaseMaxVotes()" class="bg-purple-600 text-white w-10 h-10 rounded-lg hover:bg-purple-700 transition-all font-bold text-xl"> + </button>
+        </div>
+       </div>
+       <p id="mode-description" class="text-xs text-gray-600 mt-3 text-center"></p><button id="reset-votes-btn" class="w-full mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all font-semibold text-sm" onclick="resetMyVotes()"> 🔄 Reset Pilihan Saya </button>
+      </div><!-- Add Candidate Form -->
+      <div class="mb-6"><label for="candidate-name" class="block text-sm font-semibold text-gray-700 mb-2">Nama Kandidat Baru</label>
+       <div class="flex gap-2"><input type="text" id="candidate-name" placeholder="Masukkan nama kandidat" class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 transition-all"> <button id="add-candidate" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-all font-semibold whitespace-nowrap"> Tambah </button>
+       </div>
+      </div><!-- Candidates Management List -->
+      <div>
+       <h3 class="text-sm font-semibold text-gray-700 mb-3">Daftar Kandidat</h3>
+       <div id="manage-candidates-list" class="space-y-3"><!-- Management list will be rendered here -->
+       </div>
+      </div><!-- Limit Warning -->
+      <div id="limit-warning" class="hidden mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+       <p class="text-sm text-amber-800 font-semibold">⚠️ Batas maksimum 999 kandidat telah tercapai. Hapus kandidat untuk menambah yang baru.</p>
+      </div>
+     </div>
+    </div>
+   </div><!-- Toast Notification -->
+   <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg hidden fade-in z-50">
+    <p id="toast-message"></p>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      background_color: '#667eea',
+      surface_color: '#ffffff',
+      text_color: '#1f2937',
+      primary_action_color: '#8b5cf6',
+      secondary_action_color: '#6366f1',
+      app_title: 'Aplikasi Voting',
+      vote_button_text: 'Vote',
+      settings_title: 'Kelola Kandidat',
+      already_voted_text: 'Sudah Dipilih',
+      results_title: 'Hasil Voting',
+      admin_password_label: 'Password Admin',
+      font_family: 'Poppins',
+      font_size: 16
+    };
+
+    let candidates = [];
+    let isLoading = false;
+    let votingMode = 'multiple'; // 'single' or 'multiple'
+    let votedCandidates = new Set(); // Track voted candidates
+    let maxVotes = 2; // Maximum votes allowed in multiple mode (default: 2)
+    let adminPassword = 'admin123'; // Default admin password
+    let currentVoterName = ''; // Current voter's name
+
+    const dataHandler = {
+      onDataChanged(data) {
+        candidates = data.sort((a, b) => b.votes - a.votes);
+        renderCandidates();
+        renderManagementList();
+        updateEmptyState();
+      }
+    };
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      toastMessage.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+
+    function setVotingMode(mode) {
+      votingMode = mode;
+      localStorage.setItem('votingMode', mode);
+      updateModeButtons();
+      renderCandidates();
+      
+      if (mode === 'single') {
+        showToast('Mode: Pemilih hanya dapat memilih satu kandidat');
+      } else {
+        showToast(`Mode: Pemilih dapat memilih maksimal ${maxVotes} kandidat`);
+      }
+    }
+
+    function updateModeButtons() {
+      const singleBtn = document.getElementById('mode-single');
+      const multipleBtn = document.getElementById('mode-multiple');
+      const description = document.getElementById('mode-description');
+      const maxVotesContainer = document.getElementById('max-votes-container');
+
+      if (votingMode === 'single') {
+        singleBtn.className = 'flex-1 px-4 py-3 rounded-lg font-semibold transition-all border-2 bg-purple-600 text-white border-purple-600';
+        multipleBtn.className = 'flex-1 px-4 py-3 rounded-lg font-semibold transition-all border-2 bg-white text-gray-700 border-gray-300 hover:border-purple-400';
+        description.textContent = 'Setiap pemilih hanya dapat memilih satu kandidat';
+        maxVotesContainer.classList.add('hidden');
+      } else {
+        singleBtn.className = 'flex-1 px-4 py-3 rounded-lg font-semibold transition-all border-2 bg-white text-gray-700 border-gray-300 hover:border-purple-400';
+        multipleBtn.className = 'flex-1 px-4 py-3 rounded-lg font-semibold transition-all border-2 bg-purple-600 text-white border-purple-600';
+        description.textContent = `Setiap pemilih dapat memilih maksimal ${maxVotes} kandidat`;
+        maxVotesContainer.classList.remove('hidden');
+      }
+    }
+
+    function increaseMaxVotes() {
+      if (maxVotes < 99) {
+        maxVotes++;
+        localStorage.setItem('maxVotes', maxVotes);
+        document.getElementById('max-votes-display').textContent = maxVotes;
+        updateModeButtons();
+        renderCandidates();
+        showToast(`Maksimal pilihan: ${maxVotes} kandidat`);
+      }
+    }
+
+    function decreaseMaxVotes() {
+      if (maxVotes > 1) {
+        maxVotes--;
+        localStorage.setItem('maxVotes', maxVotes);
+        document.getElementById('max-votes-display').textContent = maxVotes;
+        updateModeButtons();
+        renderCandidates();
+        showToast(`Maksimal pilihan: ${maxVotes} kandidat`);
+      }
+    }
+
+    function resetMyVotes() {
+      votedCandidates.clear();
+      localStorage.removeItem('votedCandidates');
+      currentVoterName = '';
+      localStorage.removeItem('currentVoterName');
+      document.getElementById('voter-name').value = '';
+      renderCandidates();
+      updateEmptyState();
+      showToast('Pilihan Anda telah direset. Anda dapat memilih lagi! 🔄');
+    }
+
+    function updateEmptyState() {
+      const emptyState = document.getElementById('empty-state');
+      const candidatesContainer = document.getElementById('candidates-container');
+      const voterNameSection = document.getElementById('voter-name-section');
+      
+      if (candidates.length === 0) {
+        emptyState.classList.remove('hidden');
+        candidatesContainer.classList.add('hidden');
+        voterNameSection.classList.add('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        candidatesContainer.classList.remove('hidden');
+        
+        // Show voter name input if user hasn't voted yet or can still vote
+        const canStillVote = votingMode === 'multiple' 
+          ? votedCandidates.size < maxVotes 
+          : votedCandidates.size === 0;
+        
+        if (canStillVote) {
+          voterNameSection.classList.remove('hidden');
+        } else {
+          voterNameSection.classList.add('hidden');
+        }
+      }
+    }
+
+    function renderResults() {
+      const container = document.getElementById('results-list');
+      
+      if (candidates.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada data voting</p>';
+        return;
+      }
+
+      const totalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
+      
+      const resultHTML = candidates.map((candidate, index) => {
+        const percentage = totalVotes > 0 ? ((candidate.votes / totalVotes) * 100).toFixed(1) : 0;
+        const votersList = candidate.voter_names ? candidate.voter_names.split('|||').filter(n => n.trim()) : [];
+        const medals = ['🥇', '🥈', '🥉'];
+        const medal = index < 3 ? medals[index] : '';
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                ${medal} ${candidate.name}
+              </h3>
+              <span class="text-2xl font-bold text-green-600">${candidate.votes} suara</span>
+            </div>
+            
+            <!-- Percentage Bar -->
+            <div class="mb-3">
+              <div class="flex items-center justify-between text-sm text-gray-600 mb-1">
+                <span>Persentase</span>
+                <span class="font-bold">${percentage}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div class="bg-gradient-to-r from-green-500 to-teal-500 h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+            
+            <!-- Voters List -->
+            <div class="mt-3">
+              <p class="text-sm font-semibold text-gray-700 mb-2">Daftar Pemilih (${votersList.length}):</p>
+              ${votersList.length > 0 
+                ? `<div class="bg-white rounded-lg p-3 max-h-32 overflow-y-auto">
+                    <ul class="text-sm text-gray-600 space-y-1">
+                      ${votersList.map((voter, idx) => `<li>${idx + 1}. ${voter}</li>`).join('')}
+                    </ul>
+                   </div>`
+                : `<p class="text-sm text-gray-500 italic">Belum ada pemilih</p>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      container.innerHTML = `
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div class="text-center">
+            <p class="text-sm text-gray-600">Total Suara Terkumpul</p>
+            <p class="text-3xl font-bold text-blue-600">${totalVotes}</p>
+          </div>
+        </div>
+        ${resultHTML}
+      `;
+    }
+
+    function renderCandidates() {
+      const container = document.getElementById('candidates-container');
+      const existingCards = new Map(
+        [...container.children].map(el => [el.dataset.candidateId, el])
+      );
+
+      candidates.forEach((candidate, index) => {
+        if (existingCards.has(candidate.id)) {
+          updateCandidateCard(existingCards.get(candidate.id), candidate, index);
+          existingCards.delete(candidate.id);
+        } else {
+          container.appendChild(createCandidateCard(candidate, index));
+        }
+      });
+
+      existingCards.forEach(el => el.remove());
+    }
+
+    function createCandidateCard(candidate, index) {
+      const card = document.createElement('div');
+      card.dataset.candidateId = candidate.id;
+      card.className = 'bg-white rounded-xl shadow-lg p-6 transition-all hover:shadow-xl';
+      
+      updateCandidateCard(card, candidate, index);
+      return card;
+    }
+
+    function updateCandidateCard(card, candidate, index) {
+      const medals = ['🥇', '🥈', '🥉'];
+      const medal = index < 3 ? medals[index] : '';
+      const hasVoted = votedCandidates.has(candidate.id);
+      
+      let isDisabled = false;
+      if (votingMode === 'single') {
+        isDisabled = votedCandidates.size > 0 && !hasVoted;
+      } else {
+        isDisabled = votedCandidates.size >= maxVotes && !hasVoted;
+      }
+      
+      const buttonText = hasVoted 
+        ? (window.elementSdk?.config?.already_voted_text || defaultConfig.already_voted_text)
+        : (window.elementSdk?.config?.vote_button_text || defaultConfig.vote_button_text);
+      
+      const buttonClass = hasVoted 
+        ? 'vote-button bg-green-500 text-white px-6 py-3 rounded-lg font-semibold cursor-default'
+        : isDisabled
+        ? 'vote-button bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold cursor-not-allowed opacity-50'
+        : 'vote-button bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold';
+      
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            ${medal} ${candidate.name}
+          </h3>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="text-center">
+            <p class="text-3xl font-bold text-purple-600">${candidate.votes}</p>
+            <p class="text-sm text-gray-500">Suara</p>
+          </div>
+          <button 
+            class="${buttonClass}"
+            onclick="vote('${candidate.id}')"
+            ${(hasVoted || isDisabled) ? 'disabled' : ''}
+          >
+            ${buttonText}
+          </button>
+        </div>
+      `;
+    }
+
+    function renderManagementList() {
+      const container = document.getElementById('manage-candidates-list');
+      
+      if (candidates.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-4 text-sm">Belum ada kandidat</p>';
+        return;
+      }
+
+      container.innerHTML = candidates.map(candidate => `
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <input 
+            type="text" 
+            value="${candidate.name}" 
+            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 text-sm"
+            onchange="updateCandidateName('${candidate.id}', this.value)"
+          >
+          <button 
+            onclick="deleteCandidate('${candidate.id}')"
+            class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-all font-semibold text-sm"
+          >
+            Hapus
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function vote(candidateId) {
+      if (isLoading) return;
+      
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+
+      // Check if already voted for this candidate
+      if (votedCandidates.has(candidateId)) {
+        showToast('Anda sudah memilih kandidat ini');
+        return;
+      }
+
+      // Check voting limits
+      if (votingMode === 'single' && votedCandidates.size > 0) {
+        showToast('Mode pilih satu: Anda hanya dapat memilih satu kandidat');
+        return;
+      }
+
+      if (votingMode === 'multiple' && votedCandidates.size >= maxVotes) {
+        showToast(`Maksimal ${maxVotes} kandidat. Gunakan Reset untuk memilih lagi.`);
+        return;
+      }
+
+      // Get voter name
+      const voterNameInput = document.getElementById('voter-name');
+      const voterName = voterNameInput.value.trim();
+      
+      if (!voterName) {
+        showToast('⚠️ Masukkan nama Anda terlebih dahulu');
+        voterNameInput.focus();
+        return;
+      }
+
+      // Store voter name for subsequent votes
+      if (!currentVoterName) {
+        currentVoterName = voterName;
+        localStorage.setItem('currentVoterName', voterName);
+      }
+
+      isLoading = true;
+      const voteButtons = document.querySelectorAll('.vote-button');
+      voteButtons.forEach(btn => btn.disabled = true);
+
+      // Add voter name to the candidate's voter list
+      const existingVoters = candidate.voter_names || '';
+      const updatedVotersList = existingVoters ? `${existingVoters}|||${voterName}` : voterName;
+
+      const updatedCandidate = { 
+        ...candidate, 
+        votes: candidate.votes + 1,
+        voter_names: updatedVotersList
+      };
+      const result = await window.dataSdk.update(updatedCandidate);
+
+      if (result.isOk) {
+        votedCandidates.add(candidateId);
+        localStorage.setItem('votedCandidates', JSON.stringify([...votedCandidates]));
+        
+        const remaining = votingMode === 'multiple' ? maxVotes - votedCandidates.size : 0;
+        if (remaining > 0) {
+          showToast(`Vote untuk ${candidate.name} berhasil! Sisa ${remaining} pilihan lagi. 🎉`);
+        } else {
+          showToast(`Vote untuk ${candidate.name} berhasil! 🎉`);
+          voterNameInput.value = '';
+          currentVoterName = '';
+        }
+        
+        renderCandidates();
+        updateEmptyState();
+      } else {
+        showToast('Gagal memberikan vote. Silakan coba lagi.');
+      }
+
+      isLoading = false;
+      voteButtons.forEach(btn => btn.disabled = false);
+    }
+
+    async function updateCandidateName(candidateId, newName) {
+      if (!newName.trim() || isLoading) return;
+
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate || candidate.name === newName.trim()) return;
+
+      isLoading = true;
+      const updatedCandidate = { ...candidate, name: newName.trim() };
+      const result = await window.dataSdk.update(updatedCandidate);
+
+      if (result.isOk) {
+        showToast('Nama kandidat berhasil diubah');
+      } else {
+        showToast('Gagal mengubah nama kandidat');
+      }
+
+      isLoading = false;
+    }
+
+    async function deleteCandidate(candidateId) {
+      if (isLoading) return;
+
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+
+      isLoading = true;
+      const result = await window.dataSdk.delete(candidate);
+
+      if (result.isOk) {
+        showToast(`${candidate.name} berhasil dihapus`);
+      } else {
+        showToast('Gagal menghapus kandidat');
+      }
+
+      isLoading = false;
+    }
+
+    document.getElementById('results-btn').addEventListener('click', () => {
+      document.getElementById('results-modal').classList.remove('hidden');
+      document.getElementById('results-modal').classList.add('flex');
+      document.getElementById('password-entry').classList.remove('hidden');
+      document.getElementById('results-content').classList.add('hidden');
+      document.getElementById('admin-password').value = '';
+    });
+
+    document.getElementById('close-results').addEventListener('click', () => {
+      document.getElementById('results-modal').classList.add('hidden');
+      document.getElementById('results-modal').classList.remove('flex');
+    });
+
+    document.getElementById('verify-password').addEventListener('click', () => {
+      const inputPassword = document.getElementById('admin-password').value;
+      
+      if (inputPassword === adminPassword) {
+        document.getElementById('password-entry').classList.add('hidden');
+        document.getElementById('results-content').classList.remove('hidden');
+        renderResults();
+        showToast('✅ Akses diberikan');
+      } else {
+        showToast('❌ Password salah');
+        document.getElementById('admin-password').value = '';
+      }
+    });
+
+    document.getElementById('admin-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('verify-password').click();
+      }
+    });
+
+    document.getElementById('save-password').addEventListener('click', () => {
+      const oldPassword = document.getElementById('old-password').value;
+      const newPassword = document.getElementById('new-password').value.trim();
+      const confirmPassword = document.getElementById('confirm-password').value.trim();
+      
+      // Verify old password
+      if (oldPassword !== adminPassword) {
+        showToast('❌ Password lama salah');
+        document.getElementById('old-password').value = '';
+        document.getElementById('old-password').focus();
+        return;
+      }
+      
+      // Check if new password is provided
+      if (!newPassword) {
+        showToast('⚠️ Masukkan password baru');
+        document.getElementById('new-password').focus();
+        return;
+      }
+
+      // Check minimum length
+      if (newPassword.length < 6) {
+        showToast('⚠️ Password minimal 6 karakter');
+        document.getElementById('new-password').focus();
+        return;
+      }
+
+      // Check if passwords match
+      if (newPassword !== confirmPassword) {
+        showToast('❌ Konfirmasi password tidak cocok');
+        document.getElementById('confirm-password').value = '';
+        document.getElementById('confirm-password').focus();
+        return;
+      }
+
+      // Check if new password is different from old
+      if (newPassword === oldPassword) {
+        showToast('⚠️ Password baru harus berbeda dari password lama');
+        return;
+      }
+
+      // Update password
+      adminPassword = newPassword;
+      localStorage.setItem('adminPassword', adminPassword);
+      
+      // Clear all fields
+      document.getElementById('old-password').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('confirm-password').value = '';
+      
+      showToast('✅ Password admin berhasil diubah!');
+    });
+
+    document.getElementById('settings-btn').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.remove('hidden');
+      document.getElementById('settings-modal').classList.add('flex');
+      document.getElementById('settings-password-entry').classList.remove('hidden');
+      document.getElementById('settings-content').classList.add('hidden');
+      document.getElementById('settings-admin-password').value = '';
+    });
+
+    document.getElementById('close-modal').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('settings-modal').classList.remove('flex');
+    });
+
+    document.getElementById('verify-settings-password').addEventListener('click', () => {
+      const inputPassword = document.getElementById('settings-admin-password').value;
+      
+      if (inputPassword === adminPassword) {
+        document.getElementById('settings-password-entry').classList.add('hidden');
+        document.getElementById('settings-content').classList.remove('hidden');
+        showToast('✅ Akses pengaturan diberikan');
+      } else {
+        showToast('❌ Password salah');
+        document.getElementById('settings-admin-password').value = '';
+      }
+    });
+
+    document.getElementById('settings-admin-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('verify-settings-password').click();
+      }
+    });
+
+    document.getElementById('add-candidate').addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      if (candidates.length >= 999) {
+        document.getElementById('limit-warning').classList.remove('hidden');
+        return;
+      }
+
+      const input = document.getElementById('candidate-name');
+      const name = input.value.trim();
+
+      if (!name) {
+        showToast('Masukkan nama kandidat');
+        return;
+      }
+
+      if (isLoading) return;
+
+      isLoading = true;
+      document.getElementById('add-candidate').disabled = true;
+
+      const newCandidate = {
+        id: Date.now().toString(),
+        name: name,
+        votes: 0,
+        created_at: new Date().toISOString(),
+        voter_names: ''
+      };
+
+      const result = await window.dataSdk.create(newCandidate);
+
+      if (result.isOk) {
+        input.value = '';
+        showToast(`${name} berhasil ditambahkan! 🎉`);
+        document.getElementById('limit-warning').classList.add('hidden');
+      } else {
+        showToast('Gagal menambah kandidat. Silakan coba lagi.');
+      }
+
+      isLoading = false;
+      document.getElementById('add-candidate').disabled = false;
+    });
+
+    function loadPreferences() {
+      const savedMode = localStorage.getItem('votingMode');
+      if (savedMode) {
+        votingMode = savedMode;
+      }
+
+      const savedMaxVotes = localStorage.getItem('maxVotes');
+      if (savedMaxVotes) {
+        maxVotes = parseInt(savedMaxVotes);
+        document.getElementById('max-votes-display').textContent = maxVotes;
+      }
+
+      const savedVotes = localStorage.getItem('votedCandidates');
+      if (savedVotes) {
+        try {
+          votedCandidates = new Set(JSON.parse(savedVotes));
+        } catch (e) {
+          votedCandidates = new Set();
+        }
+      }
+
+      const savedPassword = localStorage.getItem('adminPassword');
+      if (savedPassword) {
+        adminPassword = savedPassword;
+      }
+
+      const savedVoterName = localStorage.getItem('currentVoterName');
+      if (savedVoterName) {
+        currentVoterName = savedVoterName;
+        document.getElementById('voter-name').value = savedVoterName;
+      }
+
+      updateModeButtons();
+    }
+
+    async function onConfigChange(config) {
+      const appTitle = document.getElementById('app-title');
+      const settingsTitle = document.getElementById('settings-title');
+      const resultsTitle = document.getElementById('results-title');
+      const adminPasswordLabel = document.getElementById('admin-password-label');
+      
+      appTitle.textContent = config.app_title || defaultConfig.app_title;
+      settingsTitle.textContent = config.settings_title || defaultConfig.settings_title;
+      resultsTitle.textContent = config.results_title || defaultConfig.results_title;
+      adminPasswordLabel.textContent = config.admin_password_label || defaultConfig.admin_password_label;
+      
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Arial, sans-serif';
+      document.body.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      document.body.style.fontSize = `${baseSize}px`;
+      
+      const bgColor = config.background_color || defaultConfig.background_color;
+      const secondaryColor = config.secondary_action_color || defaultConfig.secondary_action_color;
+      document.getElementById('app').style.background = `linear-gradient(135deg, ${bgColor} 0%, ${secondaryColor} 100%)`;
+      
+      renderCandidates();
+    }
+
+    async function init() {
+      loadPreferences();
+      
+      await window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities: (config) => ({
+          recolorables: [
+            {
+              get: () => config.background_color || defaultConfig.background_color,
+              set: (value) => {
+                config.background_color = value;
+                window.elementSdk.setConfig({ background_color: value });
+              }
+            },
+            {
+              get: () => config.surface_color || defaultConfig.surface_color,
+              set: (value) => {
+                config.surface_color = value;
+                window.elementSdk.setConfig({ surface_color: value });
+              }
+            },
+            {
+              get: () => config.text_color || defaultConfig.text_color,
+              set: (value) => {
+                config.text_color = value;
+                window.elementSdk.setConfig({ text_color: value });
+              }
+            },
+            {
+              get: () => config.primary_action_color || defaultConfig.primary_action_color,
+              set: (value) => {
+                config.primary_action_color = value;
+                window.elementSdk.setConfig({ primary_action_color: value });
+              }
+            },
+            {
+              get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+              set: (value) => {
+                config.secondary_action_color = value;
+                window.elementSdk.setConfig({ secondary_action_color: value });
+              }
+            }
+          ],
+          borderables: [],
+          fontEditable: {
+            get: () => config.font_family || defaultConfig.font_family,
+            set: (value) => {
+              config.font_family = value;
+              window.elementSdk.setConfig({ font_family: value });
+            }
+          },
+          fontSizeable: {
+            get: () => config.font_size || defaultConfig.font_size,
+            set: (value) => {
+              config.font_size = value;
+              window.elementSdk.setConfig({ font_size: value });
+            }
+          }
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ['app_title', config.app_title || defaultConfig.app_title],
+          ['vote_button_text', config.vote_button_text || defaultConfig.vote_button_text],
+          ['settings_title', config.settings_title || defaultConfig.settings_title],
+          ['already_voted_text', config.already_voted_text || defaultConfig.already_voted_text],
+          ['results_title', config.results_title || defaultConfig.results_title],
+          ['admin_password_label', config.admin_password_label || defaultConfig.admin_password_label]
+        ])
+      });
+
+      const initResult = await window.dataSdk.init(dataHandler);
+      if (!initResult.isOk) {
+        showToast('Gagal menginisialisasi aplikasi');
+      }
+    }
+
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c7c9067b1060d23',t:'MTc3MDA2NTQ2MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
